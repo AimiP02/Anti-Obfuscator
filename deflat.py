@@ -27,7 +27,7 @@ def GetCFG(start_addr):
 # Patch掉不可到达的块
 def PatchNOP(block):
     offset = block.addr - proj.loader.main_object.mapped_base
-    binfile[offset:offset + block.size] = b'\x90' * block.size
+    binfile[offset : offset + block.size] = b'\x90' * block.size
     print('Patch %#x with %d nops' % (block.addr, block.size))
 
 # 反混淆虚假控制流
@@ -45,11 +45,11 @@ def AntiObfuscate(start_addr):
             # 如果可以到达的话说明是真的控制流，从bb_set中删除
             bb_set.discard(active.addr)
             block = proj.factory.block(active.addr)
-            # hook掉调用的函数，限制符号执行的范围
+            # hook掉call的函数，随便返回一个值从而限制符号执行的范围
             for inst in block.capstone.insns:
                 if inst.mnemonic == 'call':
                     next_func_addr = int(inst.op_str, 16)
-                    proj.hook(next_func_addr, angr.sim_procedure['stubs']['ReturnUnconstrained'](), replace=True)
+                    proj.hook(next_func_addr, angr.SIM_PROCEDURES["stubs"]["ReturnUnconstrained"](), replace=True)
                     print('Hook [%s\t%s] at %#x' % (inst.mnemonic, inst.op_str, inst.address))
         simgr.step()
     for block in bb_set:
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     proj = angr.Project(args.file, load_options={'auto_load_libs': False})
     start_addr = args.start
     
-    PlotCFG(proj, 'Before anti-obfuscation')
+    # PlotCFG(proj, 'Before anti-obfuscation')
     
     # 如果未指定起始地址，则从main函数的地址开始
     if start_addr == None:
@@ -77,7 +77,8 @@ if __name__ == "__main__":
             parser.error("Can't find <main> function, please provide a starting address with -s option")
         start_addr = main.rebased_addr
     
-    binfile = open(args.file, 'rb').read()
+    with open(args.file, 'rb') as file:
+        binfile = bytearray(file.read())
         
     AntiObfuscate(start_addr)
     
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     with open(fname + '_recovered' + ext, 'wb') as file:
         file.write(binfile)
     
-    proj = angr.Project(fname + '_recovered' + ext, load_options={'auto_load_libs': False})
-    PlotCFG(proj, 'After anti-obfuscation')
+    # proj2 = angr.Project(fname + '_recovered' + ext, load_options={'auto_load_libs': False})
+    # PlotCFG(proj2, 'After anti-obfuscation')
     
     print('Anti-Obfuscate <' + args.file + '> successfully!')
