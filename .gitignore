@@ -1,6 +1,9 @@
 # folder
 /bin
 
+# user specific files
+*.png
+
 # Prerequisites
 *.d
 
