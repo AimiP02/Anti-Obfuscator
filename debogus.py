@@ -43,7 +43,7 @@ def PatchJMP(block, target_addr):
     print('Patch [%s\t%s] at %#x' % (inst.mnemonic, inst.op_str, inst.address))
 
 # 反混淆虚假控制流
-def AntiObfuscate(start_addr):
+def Debogus(start_addr):
     flow = set()
     cfg = GetCFG(start_addr)
     
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     with open(args.file, 'rb') as file:
         binfile = bytearray(file.read())
         
-    AntiObfuscate(start_addr)
+    Debogus(start_addr)
     
     fname, ext = os.path.splitext(args.file)
     with open(fname + '_recovered' + ext, 'wb') as file:
@@ -128,4 +128,4 @@ if __name__ == "__main__":
     # proj2 = angr.Project(fname + '_recovered' + ext, load_options={'auto_load_libs': False})
     # PlotCFG(proj2, 'After anti-obfuscation')
     
-    print('Anti-Obfuscate <' + args.file + '> successfully!')
+    print('Anti-Obfuscate-debogus <' + args.file + '> successfully!')
