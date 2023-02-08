@@ -3,6 +3,8 @@
 
 # user specific files
 *.png
+*.ll
+*.bc
 
 # Prerequisites
 *.d
