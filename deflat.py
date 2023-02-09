@@ -55,8 +55,8 @@ def GetRelevantAndNopBlocks(cfg):
         nop_blocks.append(node)
     return relevant_blocks, nop_blocks
 
-def SymbolicExecution(proj, hook_addrs=None, modify=None, inspect=False):
-    global relevants, modify_value
+def SymbolicExecution(proj, start_addr, hook_addrs=None, modify_value=None, inspect=False):
+    global relevants_blocks
     
     def RetnProcedure(state):
         ip = state.solver.eval(state.regs.ip)
@@ -72,9 +72,6 @@ def SymbolicExecution(proj, hook_addrs=None, modify=None, inspect=False):
     if hook_addrs != None:
         for hook_addr in hook_addrs:
             proj.hook(hook_addr, RetnProcedure, length=5)
-    
-    if modify != None:
-        modify_value = modify
     
     state = proj.factory.blank_state(addr=start_addr, remove_options={angr.sim_options.LAZY_SOLVES})
     
@@ -98,8 +95,8 @@ def PatchBlockWithNOP(block):
 
 def PatchInstByJXX(inst, target_addr, cond, inst_offset):
     global binfile
-    if inst.mnemonic == 'mov':
-        return None
+    # if inst.mnemonic == 'mov':
+    #     return None
     offset = inst.address - base_addr + inst_offset
     binfile[offset : offset + inst.size] = OPCODE_X86['nop'] * inst.size
     if cond == 'jmp':
@@ -108,8 +105,8 @@ def PatchInstByJXX(inst, target_addr, cond, inst_offset):
     else:
         opcode = OPCODE_X86['j'] + OPCODE_X86[cond]
         addr_size = 6
-    binfile[offset : offset + addr_size] = opcode + struct.pack('<i', target_addr - inst.address - addr_size)
-    print('Patch [%s\t%s] at %#x' % (inst.mnemonic, inst.op_str, inst.address))
+    binfile[offset : offset + addr_size] = opcode + struct.pack('<i', target_addr - inst.address - addr_size - inst_offset)
+    print('Patch [%s\t%s] to [%s\t%s] at %#x' % (inst.mnemonic, inst.op_str, opcode, struct.pack('<i', target_addr - inst.address - addr_size - inst_offset), inst.address))
 
 def Deflatten(proj, cfg):
     global retn, prologue, main_dispatcher, pre_dispatcher, relevant_blocks, nop_blocks, start_addr, base_addr
@@ -146,21 +143,20 @@ def Deflatten(proj, cfg):
                 if relevant not in patch_insts:
                     patch_insts[relevant] = inst
                     has_branches = True
-                elif inst.insn.mnemonic.startswith('call'):
-                    hook_addrs.add(inst.insn.address)
+            elif inst.insn.mnemonic.startswith('call'):
+                hook_addrs.add(inst.insn.address)
 
         if has_branches:
-            tmp_addr = SymbolicExecution(proj, hook_addrs, claripy.BVV(1, 1), True)
-            
+            tmp_addr = SymbolicExecution(proj, relevant.addr, hook_addrs, claripy.BVV(1, 1), True)            
             if tmp_addr != None:
                 flow[relevant].append(tmp_addr)
-            tmp_addr = SymbolicExecution(proj, hook_addrs, claripy.BVV(0, 1), True)
 
+            tmp_addr = SymbolicExecution(proj, relevant.addr, hook_addrs, claripy.BVV(0, 1), True)
             if tmp_addr != None:
                 flow[relevant].append(tmp_addr)
         else:
-            tmp_addr = SymbolicExecution(proj, hook_addrs)
             
+            tmp_addr = SymbolicExecution(proj, relevant.addr, hook_addrs)
             if tmp_addr != None:
                 flow[relevant].append(tmp_addr)
                 
